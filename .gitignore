@@ -2,3 +2,6 @@ Temp
 Out
 
 *.jar
+*.sh
+*.deb
+*.exe
