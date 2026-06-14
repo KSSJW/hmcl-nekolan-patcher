@@ -12,7 +12,7 @@ JAR=""
 JAR_NAME=""
 PATCHED_JAR_NAME=""
 
-mkdir Temp Out
+mkdir Temp
 
 case "$EXT" in
     jar)
@@ -25,7 +25,14 @@ case "$EXT" in
     sh)
         JAR="HMCL-*.sh"
         JAR_NAME=($JAR)
-        PATCHED_JAR_NAME="${JAR_NAME//.sh/-patched.sh}"
+
+        offset=$(LC_ALL=C grep -ab -m1 $'\x50\x4b\x03\x04' $JAR_NAME | cut -d: -f1)
+        if [ -z "$offset" ]; then
+            echo "出错啦：未找到 Jar 数据起始位置喵" >&2
+            exit 1
+        fi
+
+        dd if="$JAR_NAME" of=Temp/Script/Header.bin bs=1 count=$offset 2>/dev/null
 
         jar xvf HMCL-*.sh -C Temp/HMCL
         ;;
@@ -46,6 +53,9 @@ case "$EXT" in
         jar xvf HMCL-*.exe -C Temp/HMCL
         ;;
     *)
+        rm -rf Temp
+
+        echo "没找到 HMCL 或者格式不支持喵"
         exit 1
         ;;
 esac
@@ -63,21 +73,39 @@ sed -i 's/；/喵；/g' Temp/Lang/*
 
 mv Temp/Lang/* Temp/HMCL/assets/lang
 
-if [ "$EXT" = "deb" ]; then
-    PATCHED_JAR_NAME="${JAR_NAME//.deb/.sh}"
-    cd Temp/HMCL
-    jar cvfm ../Deb/usr/share/java/hmcl/$PATCHED_JAR_NAME META-INF/MANIFEST.MF *
-    PATCHED_JAR_NAME="${JAR_NAME//.sh/.deb}"
+mkdir Out
 
-    cd ../..
-    dpkg-deb --build Temp/Deb
-    mv Temp/*.deb Out/$PATCHED_JAR_NAME
+case "$EXT" in
+    sh)
+        cd Temp/HMCL
+        PATCHED_JAR_NAME="${JAR_NAME//.sh/.jar}"
+        jar cvfm ../Script/$PATCHED_JAR_NAME META-INF/MANIFEST.MF *
 
-    exit 1
-fi
+        cd ../..
+        PATCHED_JAR_NAME="${JAR_NAME//.jar/-patched.sh}"
+        cat Temp/Script/Header.bin Temp/Script/*.jar>Temp/Script/$PATCHED_JAR_NAME
+        chmod +x Temp/Script/$PATCHED_JAR_NAME
+        mv Temp/Script/$PATCHED_JAR_NAME Out
+        ;;
+    deb)
+        PATCHED_JAR_NAME="${JAR_NAME//.deb/.sh}"
+        cd Temp/HMCL
+        jar cvfm ../Deb/usr/share/java/hmcl/$PATCHED_JAR_NAME META-INF/MANIFEST.MF *
+        PATCHED_JAR_NAME="${JAR_NAME//.sh/.deb}"
 
-cd Temp/HMCL
-jar cvfm ../../Out/$PATCHED_JAR_NAME META-INF/MANIFEST.MF *
+        cd ../..
+        dpkg-deb --build Temp/Deb
+        PATCHED_JAR_NAME="${JAR_NAME//.deb/-patched.deb}"
+        mv Temp/*.deb Out/$PATCHED_JAR_NAME
+        ;;
+    *)
+        cd Temp/HMCL
+        jar cvfm ../../Out/$PATCHED_JAR_NAME META-INF/MANIFEST.MF *
 
-cd ../..
+        cd ../..
+        ;;
+esac
+
 rm -rf Temp
+
+echo "完成啦"
