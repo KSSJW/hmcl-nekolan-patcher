@@ -56,13 +56,6 @@ case "$EXT" in
 
         jar xvf HMCL-*.sh -C Temp/HMCL
         ;;
-    exe)
-        JAR="HMCL-*.exe"
-        JAR_NAME=($JAR)
-        PATCHED_JAR_NAME="${JAR_NAME//.exe/-patched.exe}"
-
-        jar xvf HMCL-*.exe -C Temp/HMCL
-        ;;
     *)
         rm -rf Temp
 
