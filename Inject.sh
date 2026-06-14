@@ -39,11 +39,22 @@ case "$EXT" in
     deb)
         JAR="HMCL-*.deb"
         JAR_NAME=($JAR)
-        PATCHED_JAR_NAME="${JAR_NAME//.deb/-patched.deb}"
 
         dpkg-deb -R HMCL-*.deb Temp/Deb
-        jar xvf Temp/Deb/usr/share/java/hmcl/HMCL-*.sh -C Temp/HMCL
-        rm Temp/Deb/usr/share/java/hmcl/HMCL-*.sh
+        mv Temp/Deb/usr/share/java/hmcl/HMCL-*.sh .
+
+        JAR="HMCL-*.sh"
+        JAR_NAME=($JAR)
+
+        offset=$(LC_ALL=C grep -ab -m1 $'\x50\x4b\x03\x04' $JAR_NAME | cut -d: -f1)
+        if [ -z "$offset" ]; then
+            echo "出错啦：未找到 Jar 数据起始位置喵" >&2
+            exit 1
+        fi
+
+        dd if="$JAR_NAME" of=Temp/Script/Header.bin bs=1 count=$offset 2>/dev/null
+
+        jar xvf HMCL-*.sh -C Temp/HMCL
         ;;
     exe)
         JAR="HMCL-*.exe"
@@ -88,15 +99,21 @@ case "$EXT" in
         mv Temp/Script/$PATCHED_JAR_NAME Out
         ;;
     deb)
-        PATCHED_JAR_NAME="${JAR_NAME//.deb/.sh}"
         cd Temp/HMCL
-        jar cvfm ../Deb/usr/share/java/hmcl/$PATCHED_JAR_NAME META-INF/MANIFEST.MF *
-        PATCHED_JAR_NAME="${JAR_NAME//.sh/.deb}"
+        PATCHED_JAR_NAME="${JAR_NAME//.sh/.jar}"
+        jar cvfm ../Script/$PATCHED_JAR_NAME META-INF/MANIFEST.MF *
 
         cd ../..
+        PATCHED_JAR_NAME="${JAR_NAME//.jar/.sh}"
+        cat Temp/Script/Header.bin Temp/Script/*.jar>Temp/Script/$PATCHED_JAR_NAME
+        chmod +x Temp/Script/$PATCHED_JAR_NAME
+        mv Temp/Script/$PATCHED_JAR_NAME Temp/Deb/usr/share/java/hmcl
+
         dpkg-deb --build Temp/Deb
-        PATCHED_JAR_NAME="${JAR_NAME//.deb/-patched.deb}"
+        PATCHED_JAR_NAME="${JAR_NAME//.sh/-patched.deb}"
         mv Temp/*.deb Out/$PATCHED_JAR_NAME
+
+        rm HMCL-*.sh
         ;;
     *)
         cd Temp/HMCL
