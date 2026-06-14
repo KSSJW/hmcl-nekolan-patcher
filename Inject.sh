@@ -74,6 +74,7 @@ sed -i 's/？/喵？/g' Temp/Lang/*
 sed -i 's/！/喵！/g' Temp/Lang/*
 sed -i 's/：/喵：/g' Temp/Lang/*
 sed -i 's/；/喵；/g' Temp/Lang/*
+sed -i 's/喵喵/喵/g' Temp/Lang/*
 
 mv Temp/Lang/* Temp/HMCL/assets/lang
 
